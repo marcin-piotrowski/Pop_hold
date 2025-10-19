@@ -1,0 +1,104 @@
+<domain type='kvm'>
+  <name>pophold-warsztat</name>
+  <memory unit='MiB'>16384</memory>
+  <currentMemory unit='MiB'>16384</currentMemory>
+  <vcpu placement='static'>8</vcpu>
+  <os>
+    <type arch='x86_64' machine='q35'>hvm</type>
+    <loader readonly='yes' type='pflash' secure='yes'>/usr/share/OVMF/OVMF_CODE.secboot.fd</loader>
+    <nvram>/var/lib/libvirt/qemu/nvram/pophold-warsztat_VARS.fd</nvram>
+    <boot dev='cdrom'/>
+    <boot dev='hd'/>
+    <bootmenu enable='yes'/>
+  </os>
+  <features>
+    <acpi/>
+    <apic/>
+    <vmport state='off'/>
+    <smm state='on'/>
+  </features>
+  <cpu mode='host-passthrough'>
+    <topology sockets='1' cores='4' threads='2'/>
+  </cpu>
+  <clock offset='utc'/>
+  <on_poweroff>destroy</on_poweroff>
+  <on_reboot>restart</on_reboot>
+  <on_crash>restart</on_crash>
+  <devices>
+    <emulator>/usr/bin/qemu-system-x86_64</emulator>
+
+    <!-- Main system disk -->
+    <disk type='file' device='disk'>
+      <driver name='qemu' type='qcow2' discard='unmap'/>
+      <source file='/var/lib/libvirt/images/pophold-warsztat.qcow2'/>
+      <target dev='vda' bus='virtio'/>
+    </disk>
+
+    <!-- CDROM with Ubuntu ISO -->
+    <disk type='file' device='cdrom'>
+      <driver name='qemu' type='raw'/>
+      <source file='/var/lib/libvirt/images/ubuntu-24.04.1-desktop-amd64.iso'/>
+      <target dev='sda' bus='sata'/>
+      <readonly/>
+    </disk>
+
+    <!-- Controllers -->
+    <controller type='pci' model='pcie-root'/>
+    <controller type='sata'/>
+    <controller type='virtio-serial'/>
+    <controller type='usb' model='qemu-xhci'/>
+    <controller type='usb' model='qemu-xhci'/>
+
+    <!-- Pendrive A -->
+    <disk type='file' device='disk'>
+      <driver name='qemu' type='qcow2'/>
+      <source file='/var/lib/libvirt/images/pendriveA.qcow2'/>
+      <target dev='sdb' bus='usb'/>
+      <address type='usb' bus='0' port='1'/>
+    </disk>
+
+    <!-- Pendrive B -->
+    <disk type='file' device='disk'>
+      <driver name='qemu' type='qcow2'/>
+      <source file='/var/lib/libvirt/images/pendriveB.qcow2'/>
+      <target dev='sdc' bus='usb'/>
+      <address type='usb' bus='0' port='2'/>
+    </disk>
+
+    <!-- Pendrive C -->
+    <disk type='file' device='disk'>
+      <driver name='qemu' type='qcow2'/>
+      <source file='/var/lib/libvirt/images/pendriveC.qcow2'/>
+      <target dev='sdd' bus='usb'/>
+      <address type='usb' bus='1' port='1'/>
+    </disk>
+
+    <!-- Pendrive D -->
+    <disk type='file' device='disk'>
+      <driver name='qemu' type='qcow2'/>
+      <source file='/var/lib/libvirt/images/pendriveD.qcow2'/>
+      <target dev='sde' bus='usb'/>
+      <address type='usb' bus='1' port='2'/>
+    </disk>
+
+    <!-- Graphics: SPICE + virtio video -->
+    <graphics type='spice' autoport='yes' listen='127.0.0.1'/>
+    <video>
+      <model type='virtio' heads='1'/>
+    </video>
+
+    <!-- Serial/console to capture OVMF output if GUI stays black -->
+    <serial type='pty'>
+      <target port='0'/>
+    </serial>
+    <console type='pty'>
+      <target type='serial' port='0'/>
+    </console>
+
+    <input type='tablet' bus='usb'/>
+    <memballoon model='virtio'/>
+    <rng model='virtio'>
+      <backend model='random'>/dev/urandom</backend>
+    </rng>
+  </devices>
+</domain>
