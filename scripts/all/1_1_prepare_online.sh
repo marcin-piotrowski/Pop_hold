@@ -2,7 +2,7 @@
 set -euo pipefail
 
 BASE=${BASE:-$HOME/SecureBoot_Project}
-mkdir -p "$BASE"/{iso,tools,checksums/{ubuntu,popos},packages}
+mkdir -p "$BASE"/{iso,tools,checksums/popos,packages}
 
 # ---------------------------
 # Pomocnicze kolory + echo
@@ -14,59 +14,7 @@ warn(){ printf "%s[!]%s %s\n" "$YLW" "$CLR" "$1"; }
 err(){  printf "%s[✗]%s %s\n" "$RED" "$CLR" "$1"; }
 
 # ---------------------------
-# Funkcja: pobieranie z fallback
-# ---------------------------
-download_with_fallback() {
-  # $1: nazwa tablicy z kandydatami plików
-  # $2: ścieżka wyjściowa
-  # $3..: bazy (katalogi www)
-  local -n arr=$1
-  local outpath=$2
-  shift 2
-  local bases=("$@")
-  
-  if [[ -f "$outpath" ]]; then
-    ok "Plik już istnieje, pomijam: $(basename "$outpath")"
-    return 0
-  fi
-  
-  for f in "${arr[@]}"; do
-    for b in "${bases[@]}"; do
-      local url="$b/$f"
-      info "Próba: $url"
-      if curl -fsIL "$url" >/dev/null 2>&1; then
-        info "Pobieram: $url"
-        curl -fL "$url" -o "$outpath"
-        echo "$b" > "${outpath}.source.txt"
-        echo "$f" > "${outpath}.filename.txt"
-        ok "OK: $(basename "$outpath")"
-        return 0
-      fi
-    done
-  done
-  err "Nie udało się pobrać żadnego wariantu: ${arr[*]}"
-  return 1
-}
-
-# ---------------------------
-# 1) Ubuntu Desktop 24.04.x
-# ---------------------------
-info "Pobieranie ISO Ubuntu 24.04.x (Desktop)…"
-UBU_DIR_NOBLE="https://releases.ubuntu.com/noble"
-UBU_DIR_OLD="https://old-releases.ubuntu.com/releases/24.04"
-UBU_FILES=("ubuntu-24.04.3-desktop-amd64.iso" "ubuntu-24.04.2-desktop-amd64.iso" "ubuntu-24.04.1-desktop-amd64.iso")
-
-download_with_fallback UBU_FILES "$BASE/iso/ubuntu-desktop-amd64.iso" "$UBU_DIR_NOBLE" "$UBU_DIR_OLD"
-
-UBU_SRC_BASE=$(cat "$BASE/iso/ubuntu-desktop-amd64.iso.source.txt")
-info "Pobieranie SHA256SUMS z: $UBU_SRC_BASE"
-curl -fL "$UBU_SRC_BASE/SHA256SUMS" -o "$BASE/checksums/ubuntu/SHA256SUMS"
-curl -fL "$UBU_SRC_BASE/SHA256SUMS.gpg" -o "$BASE/checksums/ubuntu/SHA256SUMS.gpg" || true
-ok "Ubuntu ISO + sumy pobrane"
-
-# ---------------------------
-# 2) Pop!_OS 24.04 ISO (bezpośrednio z DO Spaces; ścieżki różnią się wariantem) ---
-# Znane wzorce plików (warto mieć w razie zmian numeracji "11" → "12"):
+# 1) Pop!_OS 24.04 ISO (bezpośrednio z DO Spaces; ścieżki różnią się wariantem)
 # ---------------------------
 
 echo "[*] Wybierz wariant Pop!_OS (nvidia/intel) [domyślnie: nvidia]: "
@@ -128,7 +76,7 @@ else
 fi
 
 # ---------------------------
-# 4) Etcher AppImage
+# 2) Etcher AppImage
 # ---------------------------
 info "Pobieranie Etcher 1.19.25 AppImage…"
 curl -fL "https://sourceforge.net/projects/etcher.mirror/files/v1.19.25/balenaEtcher-1.19.25-x64.AppImage/download" \
@@ -136,58 +84,26 @@ curl -fL "https://sourceforge.net/projects/etcher.mirror/files/v1.19.25/balenaEt
 ok "Etcher zapisany"
 
 # ---------------------------
-# 5) Paczki .deb z Ubuntu 24.04 (noble) — wbudowany pobieracz offline
+# 3) Paczki .deb z repozytoriów Pop!_OS
 # ---------------------------
-info "Zbieram .deb (efitools, sbsigntool, openssl) z Ubuntu noble do $BASE/packages (bez roota)…"
+info "Aktualizuję listę pakietów (wymaga sudo)…"
+sudo apt-get update -y
 
-APTROOT="$BASE/apt-noble-tmp"
-mkdir -p "$APTROOT"/etc/apt "$APTROOT"/var/lib/apt/lists/partial "$APTROOT"/var/cache/apt/archives/partial "$APTROOT"/var/lib/dpkg
-touch "$APTROOT/var/lib/dpkg/status"
-
-# Keyring — skopiuj z hosta (najprościej)
-KEY_DEST="$APTROOT/etc/apt/trusted.gpg"
-FOUND=0
-for src in \
-  /usr/share/keyrings/ubuntu-archive-keyring.gpg \
-  /etc/apt/trusted.gpg.d/ubuntu-archive-keyring.gpg \
-  /etc/apt/trusted.gpg; do
-  if [[ -f "$src" ]]; then
-    cp -f "$src" "$KEY_DEST"
-    FOUND=1
-    info "Keyring: $src -> $KEY_DEST"
-    break
+info "Pobieram .deb (efitools, sbsigntool, openssl) do $BASE/packages …"
+pushd "$BASE/packages" >/dev/null
+for pkg in efitools sbsigntool openssl; do
+  info "→ $pkg"
+  if apt-get download "$pkg"; then
+    ok "Zapisano $(ls -t ${pkg}_*.deb 2>/dev/null | head -n1)"
+  else
+    warn "Nie udało się pobrać pakietu: $pkg"
   fi
 done
-if [[ $FOUND -eq 0 ]]; then
-  err "Brak keyringu Ubuntu na hoście. Zainstaluj 'ubuntu-keyring' i odpal ponownie."
-  exit 2
-fi
-
-cat > "$APTROOT/etc/apt/sources.list" <<'EOF'
-deb http://archive.ubuntu.com/ubuntu noble main universe
-deb http://archive.ubuntu.com/ubuntu noble-updates main universe
-deb http://archive.ubuntu.com/ubuntu noble-security main universe
-EOF
-
-APT_ARGS=(
-  -o Dir="$APTROOT"
-  -o Dir::Etc::sourcelist="sources.list"
-  -o Dir::Etc::sourceparts="-"
-  -o Dir::Etc::trusted="trusted.gpg"
-  -o Dir::State="var/lib/apt"
-  -o Dir::State::status="$APTROOT/var/lib/dpkg/status"
-  -o Dir::Cache::archives="$APTROOT/var/cache/apt/archives"
-  -o Debug::NoLocking=1
-)
-
-apt-get "${APT_ARGS[@]}" update
-apt-get "${APT_ARGS[@]}" -y --download-only install --no-install-recommends efitools sbsigntool openssl
-cp -v "$APTROOT/var/cache/apt/archives/"*.deb "$BASE/packages/" || warn "Nie znaleziono .deb do skopiowania"
-rm -rf "$APTROOT"
+popd >/dev/null
 ok "Paczki .deb zebrane (sprawdź w $BASE/packages)"
 
 # ---------------------------
-# 6) Podsumowanie
+# 4) Podsumowanie
 # ---------------------------
 echo
 ok "Pakiet offline gotowy w: $BASE"

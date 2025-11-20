@@ -2,13 +2,13 @@
 set -euo pipefail
 
 # 1_5_create_pendrive_A.sh
-# Tworzy pendrive A: Ubuntu Live + partycja TOOLS (FAT32) z narzędziami.
+# Tworzy pendrive A: Pop!_OS Live + partycja TOOLS (FAT32) z narzędziami.
 # Użycie:
-#   sudo ./1_5_create_pendrive_A.sh /dev/sdX /ścieżka/do/ubuntu.iso /ścieżka/do/zasobów
+#   sudo ./1_5_create_pendrive_A.sh /dev/sdX /ścieżka/do/pop-os.iso /ścieżka/do/zasobów
 # gdzie:
-#   /dev/sdX          = urządzenie pendrive (NIE partycja!)
-#   ubuntu.iso        = obraz Ubuntu (hybrydowy)
-#   /ścieżka/do/zasobów = katalog z plikami do skopiowania (AppImage, .deb, dodatkowe ISO, SHA256SUMS itd.)
+#   /dev/sdX             = urządzenie pendrive (NIE partycja!)
+#   pop-os.iso           = obraz Pop!_OS (hybrydowy)
+#   /ścieżka/do/zasobów  = katalog z plikami do skopiowania (AppImage, .deb, dodatkowe ISO, SHA256SUMS itd.)
 
 if [[ $EUID -ne 0 ]]; then
   echo "Uruchom jako root (sudo)." >&2
@@ -16,7 +16,7 @@ if [[ $EUID -ne 0 ]]; then
 fi
 
 if [[ $# -lt 3 ]]; then
-  echo "Użycie: $0 /dev/sdX /path/ubuntu.iso /path/resources_dir" >&2
+  echo "Użycie: $0 /dev/sdX /path/pop-os.iso /path/resources_dir" >&2
   exit 1
 fi
 
@@ -30,7 +30,7 @@ done
 [[ -f "$ISO" ]] || { echo "Brak pliku ISO: $ISO" >&2; exit 1; }
 [[ -d "$RES_DIR" ]] || { echo "Brak katalogu zasobów: $RES_DIR" >&2; exit 1; }
 
-echo "=== PENDRIVE A — Ubuntu Live + TOOLS ==="
+echo "=== PENDRIVE A — Pop!_OS Live + TOOLS ==="
 echo "Urządzenie: $DEV"
 echo "ISO:        $ISO"
 echo "Zasoby:     $RES_DIR"
@@ -110,6 +110,6 @@ umount "$MNT"
 rmdir "$MNT"
 
 echo "ZROBIONE ✅"
-echo "• Pendrive startuje jako Ubuntu Live (z pierwszych partycji ISO)."
+echo "• Pendrive startuje jako Pop!_OS Live (z pierwszych partycji ISO)."
 echo "• Dodatkowa partycja FAT32 'TOOLS' zawiera narzędzia pomocnicze."
 
