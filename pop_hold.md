@@ -16,10 +16,12 @@ Zainstalować **Pop!_OS** w trybie **„twierdza”**, możliwe zabzieczyć dost
 
 ## 2) Przebieg wysokiego poziomu
 
-1. **ONLINE (krótko, kontrolowanie):** Pobierz ISO/Etcher/paczki `.deb` i oficjalne sumy/podpisy. Złóż strukturę `~/SecureBoot_Project`.
+> **Ważne:** Cały proces przygotowania instalatora i podpisywania bootloadera opiera się na **jednym systemie – Pop!_OS (live)**. Unikamy miksowania środowisk (Ubuntu/Pop!_OS), żeby pliki i sumy kontrolne były spójne z obrazem instalacyjnym, a wynikowy pendrive dawał się zainstalować na Pop!_OS bez niespodzianek.
+
+1. **ONLINE (krótko, kontrolowanie):** Pobierz Pop!_OS ISO/Etcher/paczki `.deb` i oficjalne sumy/podpisy. Złóż strukturę `~/SecureBoot_Project`.
 2. **WEJŚCIE W OFFLINE:** Odłącz sieć *fizycznie* i *logicznie*. Patrz rozdział 4.
-3. **Hardening BIOS**: Aktualizacja, Factory restet, Hasło dla admina i użytkownika
-4. **Ubuntu Live (Pendrive A):** Uruchom, zweryfikuj sumy ISO **offline**, wygeneruj klucze, zrób `.auth`, zeruj dyski twarde.
+3. **Hardening BIOS**: Aktualizacja, Factory reset, Hasło dla admina i użytkownika
+4. **Pop!_OS Live (Pendrive A):** Uruchom z obrazu Pop!_OS, zweryfikuj sumy ISO **offline**, wygeneruj klucze, zrób `.auth`, zeruj dyski twarde.
 5. **Przygotowanie instalatora (Pendrive D):** Podpisz bootloader Pop!_OS własnym `db.key`, nagraj instalator.
 6. **Instalacja Pop!_OS (OFFLINE):** Z Pendrive D.
 7. **UEFI:** Ustaw Secure Boot. Wgraj `PK/KEK/db` (i opcjonalnie `dbx`) z Pendrive B.
@@ -32,26 +34,28 @@ Zainstalować **Pop!_OS** w trybie **„twierdza”**, możliwe zabzieczyć dost
 
 ### 3.1 Przygotowanie ONLINE (krótko)
 
-*Skrypt*: [prepare_online.sh](scripts/1_1_prepare_online.sh)
+**Bazowy system:** Pop!_OS (ISO live lub zainstalowany), żeby wszystkie narzędzia i sumy były zgodne z docelowym installerem.
+
+*Skrypt*: [prepare_online.sh](scripts/01_env/1_1_prepare_online.sh)
 
 **Użycie:**
 
 ```bash
-chmod +x 1_1_prepare_online.sh
-./1_1_prepare_online.sh
+chmod +x scripts/01_env/1_1_prepare_online.sh
+./scripts/01_env/1_1_prepare_online.sh
 ```
 
-Tworzy strukturę katalogów `~/SecureBoot_Project`, pobiera ISO, sumy SHA256 i paczki `.deb`.
+Tworzy strukturę katalogów `~/SecureBoot_Project`, pobiera obraz Pop!_OS, sumy SHA256 i paczki `.deb` potrzebne do podpisania bootloadera.
 
 ### 3.2 Wejście w tryb OFFLINE
 
-*Skrypt*: [enter_offline.sh](scripts/1_2_enter_offline.sh)
+*Skrypt*: [enter_offline.sh](scripts/01_env/1_2_enter_offline.sh)
 
 **Użycie:**
 
 ```bash
-chmod +x 1_2_enter_offline.sh
-sudo ./1_2_enter_offline.sh
+chmod +x scripts/01_env/1_2_enter_offline.sh
+sudo ./scripts/01_env/1_2_enter_offline.sh
 ```
 
 Co robi:
@@ -73,33 +77,32 @@ sudo nmcli networking on \
 
 ### 3.3 Weryfikacja OFFLINE
 
-*Skrypt*: [verify_offline.sh](scripts/1_3_verify_offline.sh)
+*Skrypt*: [verify_offline.sh](scripts/01_env/1_3_verify_offline.sh)
 
 **Użycie:**
 
 ```bash
-chmod +x 1_3_verify_offline.sh
-./1_3_verify_offline.sh
+chmod +x scripts/01_env/1_3_verify_offline.sh
+./scripts/01_env/1_3_verify_offline.sh
 ```
 
 Co robi:
 
 - upewnia się, że brak trasy domyślnej,
-- sprawdza Ubuntu ISO vs SHA256SUMS,
 - sprawdza Pop!_OS ISO vs `.sha256`,
 - opcjonalnie zapisuje lokalne sumy dla DBAN i Etchera,
 - wypisuje PASS/FAIL.
-- w razie nie powodznia, pozwala pobrać jeszcze raz, po poworcie online ze skryptem `back_online.sh`
+- w razie niepowodzenia pozwala pobrać jeszcze raz, po powrocie online ze skryptem [`back_online.sh`](scripts/01_env/1_4_back_online.sh)
 
 **Uwaga:** skrypty oczekują, że `~/SecureBoot_Project/secureboot/keys` i `.../auth` są już wypełnione.
 
-### **3.4 Pendrive A — Ubuntu Live (warsztatowy)**
+### **3.4 Pendrive A — Pop!_OS Live (warsztatowy)**
 
-*Skrypt*: [prepare_pendrive_A.sh](scripts/1_5_create_pendrive_A.sh)
+*Skrypt*: [prepare_pendrive_A.sh](scripts/01_env/1_5_create_pendrive_A.sh)
 
-- Format: FAT32 (bootowalny Ubuntu Live)
-- Dodatki: `balenaEtcher.AppImage`, obrazy ISO (Ubuntu/Pop!_OS), pliki SHA256/SHA256SUMS, paczki .deb (`efitools`, `sbsigntool`, `openssl`).
-- Rola: *centrum dowodzenia* (generowanie kluczy, podpisy, weryfikacje, przygotowanie Pendrive D).
+- Format: FAT32 (bootowalny Pop!_OS Live)
+- Dodatki: `balenaEtcher.AppImage`, obraz Pop!_OS, pliki `.sha256`, paczki .deb (`efitools`, `sbsigntool`, `openssl`).
+- Rola: *centrum dowodzenia* (generowanie kluczy, podpisy, weryfikacje, przygotowanie Pendrive D) — dzięki temu cały proces odbywa się w jednym środowisku Pop!_OS.
 
 ---
 
@@ -107,7 +110,7 @@ Co robi:
 
 *(dla ASRock Z790 Taichi)*
 
-*Skrypt*: [2_bios_hardening.sh](scripts/2_bios_hardening.sh)
+*Skrypt*: [2_bios_hardening.sh](scripts/02_bios/2_bios_hardening.sh)
 
 #### Cel
 
@@ -290,14 +293,14 @@ W tym etapie *nie wgrywamy jeszcze własnych kluczy Secure Boot* – tylko tworz
 
 *Skrypty*:
 
-- [create_pendrive_B.sh](scripts/3_3_create_pendrive_B.sh)
-- [create_pendrive_C.sh](scripts/3_4_create_pendrive_C.sh)
+- [create_pendrive_B.sh](scripts/03_keys_install/3_3_create_pendrive_B.sh)
+- [create_pendrive_C.sh](scripts/03_keys_install/3_4_create_pendrive_C.sh)
 
 #### Cel
 
 Ten etap ma przygotować **czyste, niezaufane środowisko „warsztatowe”**, w którym:
 
-- uruchamiasz **Ubuntu Live (Pendrive A)** całkowicie **offline**
+- uruchamiasz **Pop!_OS Live (Pendrive A)** całkowicie **offline**
 
 - potwierdzasz, że sprzęt działa stabilnie
 
@@ -313,17 +316,17 @@ Dzięki temu masz pewność, że na żadnym dysku nie pozostały:
 
 - malware w ukrytych partycjach EFI lub VMD
 
-#### 5.1.1 – Uruchom system warsztatowy (Ubuntu Live) i rozpocznij czyszczenie dysków
+#### 5.1.1 – Uruchom system warsztatowy (Pop!_OS Live) i rozpocznij czyszczenie dysków
 
-*Skrypt*: [wipe_disks.sh](scripts/3_1_wipe_disks.sh)
+*Skrypt*: [wipe_disks.sh](scripts/03_keys_install/3_1_wipe_disks.sh)
 
-1. Włóż **Pendrive A (Ubuntu Live)**.
+1. Włóż **Pendrive A (Pop!_OS Live)**.
 
 2. Upewnij się, że **Secure Boot jest nadal wyłączony**.
 
 3. W BIOS → `Boot → Boot Option #1` ustaw pendrive jako pierwszy.
 
-4. Uruchom ponownie i wybierz **„Try Ubuntu without installing”**.
+4. Uruchom ponownie i wybierz **„Try Pop!_OS (Live)”**.
 
 5. Gdy system się załaduje, wykonaj w terminalu:
    
@@ -374,12 +377,12 @@ Dla pełnej dokumentacji możesz zapisać wynik do logu:
 
 ### 5.2 Tworzenie kluczy Secure Boot i podpisywanie EFI
 
-*Skrypt*: [secureboot_keys_gen.sh](scripts/3_2_secureboot_keys_gen.sh)
+*Skrypt*: [secureboot_keys_gen.sh](scripts/03_keys_install/3_2_secureboot_keys_gen.sh)
 
 #### Cel
 
-W tym kroku tworzysz własne klucze Secure Boot (PK, KEK, db) i przygotowujesz podpisane binarki EFI, które pozwolą uruchamiać tylko *zaufane* komponenty — Twoje i nikogo innego.  
-Całość odbywa się **offline** z systemu **Ubuntu Live (Pendrive A)**.
+W tym kroku tworzysz własne klucze Secure Boot (PK, KEK, db) i przygotowujesz podpisane binarki EFI, które pozwolą uruchamiać tylko *zaufane* komponenty — Twoje i nikogo innego.
+Całość odbywa się **offline** z systemu **Pop!_OS Live (Pendrive A)**.
 
 #### Struktura katalogów
 
@@ -399,7 +402,7 @@ Tworzymy bazowy katalog projektu (jeśli jeszcze nie istnieje):
 
 #### 5.2.1 Generowanie kluczy
 
-Użyj gotowego skryptu `gen_secureboot_keys.sh` (z folderu `scripts/`):
+Użyj gotowego skryptu `3_2_secureboot_keys_gen.sh` (z folderu `scripts/03_keys_install/` lub `scripts/all/`):
 
 > 🔒 Te klucze stanowią fundament Twojego Secure Boot.  
 > Nie przechowuj ich online — po zakończeniu przenieś na **Pendrive C (archiwum kluczy prywatnych)**.
@@ -408,7 +411,7 @@ Użyj gotowego skryptu `gen_secureboot_keys.sh` (z folderu `scripts/`):
 
 #### 5.2.2 Tworzenie plików `.auth`
 
-Użyj drugiego skryptu `make_auth_from_certs.sh`:
+Ten sam skrypt tworzy pakiety `.auth` dla BIOS/UEFI, więc nie trzeba przełączać się na inne narzędzia.
 
 > 📦 Po zakończeniu przenieś folder `auth/` na **Pendrive B (klucze do BIOS)**.  
 > Pendrive B powinien mieć format FAT32 (UEFI go odczyta).
@@ -417,11 +420,11 @@ Użyj drugiego skryptu `make_auth_from_certs.sh`:
 
 #### 5.2.3 Podpisanie bootloadera EFI (systemd-boot / shim)
 
-*Skrypt*: [secureboot_sign_popos.sh](scripts/3_5_secureboot_sign_popos.sh)
+*Skrypt*: [secureboot_sign_popos.sh](scripts/03_keys_install/3_5_secureboot_sign_popos.sh)
 
 W tym kroku podpisujemy wszystkie pliki `.efi`, które mają być uruchamiane przez UEFI — np. `systemd-bootx64.efi`, `grubx64.efi`, `shimx64.efi`.
 
-Skrypt: `sign_usb_efi_binaries.sh`
+Skrypt sam montuje i podpisuje wskazany nośnik instalatora.
 
 > 💡 Jeśli pendrive nie jest zamontowany — zamontuj go:
 > 
@@ -437,11 +440,11 @@ Skrypt: `sign_usb_efi_binaries.sh`
 | ☐      | Utworzono pliki `.auth`                         | Gotowe do importu w UEFI |
 | ☐      | Klucze `.key` / `.crt` skopiowane na Pendrive C | Sejf offline             |
 | ☐      | Pliki `.auth` skopiowane na Pendrive B          | Do wgrania w BIOS        |
-| ☐      | Podpisano pliki EFI (Pop!_OS, Ubuntu)           | Gotowy bootloader        |
+| ☐      | Podpisano pliki EFI Pop!_OS                     | Gotowy bootloader        |
 
 ### 5.3 Tworzenie instalatora Pop!_OS (custom-signed)
 
-*Skrypt*: [create_pendrive_D.sh](scripts/3_6_create_pendrive_D.sh)
+*Skrypt*: [create_pendrive_D.sh](scripts/03_keys_install/3_6_create_pendrive_D.sh)
 
 #### Cel
 
@@ -452,6 +455,8 @@ Przygotować własny instalator Pop!_OS, którego bootloader (`systemd-bootx64.e
 - z Twoim zestawem Secure Boot Keys,
 
 - a każda niepodpisana binarka zostanie odrzucona.
+
+Skrypt wykorzystuje ten sam obraz Pop!_OS pobrany w punkcie **3.1**, więc cały proces budowy instalatora i instalacji odbywa się w jednym, spójnym środowisku Pop!_OS.
 
 ---
 
@@ -532,7 +537,7 @@ Oznacz go fizycznie etykietą:
 
 ## 7) Wgrywanie własnych kluczy Secure Boot do BIOS/UEFI
 
-*Skrypt*: [load_secureboot_keys.sh](scripts/load_secureboot_keys.sh)
+*Skrypt*: [load_secureboot_keys.sh](scripts/04_key_loading/4_load_secureboot_keys.sh)
 
 ### Cel
 
@@ -637,7 +642,7 @@ BIOS zapisze pliki `.esl` i `.auth` z aktualnymi kluczami do katalogu głównego
 
 - Jeśli system się uruchamia — podpis działa poprawnie.
 
-- Spróbuj włożyć inny nośnik (np. oryginalny Ubuntu) → powinien być **zablokowany** przez UEFI.
+- Spróbuj włożyć inny nośnik (np. niesygnowany obraz live) → powinien być **zablokowany** przez UEFI.
 
 ### ✅ Checklista – „Wgrywanie kluczy Secure Boot”
 

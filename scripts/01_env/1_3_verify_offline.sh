@@ -19,54 +19,6 @@ fi
 echo
 
 # ---------------------
-# UBUNTU VERIFY
-# ---------------------
-UBU_STATUS="SKIP"
-UBU_ISO="iso/ubuntu-desktop-amd64.iso"
-UBU_SHA="checksums/ubuntu/SHA256SUMS"
-
-if [[ -f "$UBU_ISO" && -f "$UBU_SHA" ]]; then
-  info "Weryfikuję Ubuntu ISO kontra SHA256SUMS..."
-  ORIG=""; [[ -f iso/ubuntu-desktop-amd64.iso.filename.txt ]] && ORIG=$(< iso/ubuntu-desktop-amd64.iso.filename.txt)
-
-  ACT=$(sha256sum "$UBU_ISO" | awk '{print $1}')
-  EXP=""
-  if [[ -n "$ORIG" ]]; then
-    # spróbuj dopasować po nazwie pliku
-    EXP=$(grep -E "[[:space:]]\*?${ORIG//./\\.}\$" "$UBU_SHA" | awk '{print $1}' | head -n1 || true)
-  fi
-
-  if [[ -z "$EXP" ]]; then
-    # Fallback: dopasowanie po hashu (ignoruj nazwę)
-    if awk '{print $1}' "$UBU_SHA" | grep -Fxq "$ACT"; then
-      echo "Ubuntu expected: (dopasowano po hash, nazwa w SHA256SUMS może być inna)"
-      echo "Ubuntu actual  : $ACT"
-      pass "Ubuntu ISO"
-      UBU_STATUS="PASS"
-    else
-      echo "Ubuntu expected: (nie znaleziono zgodnego wpisu w SHA256SUMS)"
-      echo "Ubuntu actual  : $ACT"
-      fail "Ubuntu ISO (brak zgodności po nazwie i po hash)"
-      UBU_STATUS="FAIL"
-    fi
-  else
-    echo "Ubuntu expected: $EXP"
-    echo "Ubuntu actual  : $ACT"
-    if [[ "$EXP" == "$ACT" ]]; then
-      pass "Ubuntu ISO"
-      UBU_STATUS="PASS"
-    else
-      fail "Ubuntu ISO (niezgodna suma)"
-      UBU_STATUS="FAIL"
-    fi
-  fi
-else
-  info "Pomijam Ubuntu (brak ISO lub SHA256SUMS)."
-  UBU_STATUS="SKIP"
-fi
-echo
-
-# ---------------------
 # POP!_OS VERIFY (z pliku pasted_sha256.txt; jeśli nie ma, można wkleić ręcznie)
 # ---------------------
 POP_STATUS="SKIP"
@@ -124,12 +76,10 @@ echo
 # PODSUMOWANIE
 # ---------------------
 echo "== PODSUMOWANIE =="
-printf "Ubuntu : %s\n" "$UBU_STATUS"
 printf "Pop!_OS: %s\n" "$POP_STATUS"
 echo
 
 NEED_REDO=0
-[[ "$UBU_STATUS" == "FAIL" ]] && NEED_REDO=1
 [[ "$POP_STATUS" == "FAIL" ]] && NEED_REDO=1
 
 if [[ $NEED_REDO -eq 0 ]]; then
